@@ -222,17 +222,37 @@
         const mouse = new THREE.Vector2();
 
         // Click handler
-        function onClick(event) {
-            mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
-            mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
+        function handleInteraction(event) {
+            event.preventDefault(); // Prevent default touch behavior
+            
+            // Get coordinates based on event type
+            const coords = event.type.includes('touch') 
+                ? event.touches[0] 
+                : event;
+
+            mouse.x = (coords.clientX / window.innerWidth) * 2 - 1;
+            mouse.y = -(coords.clientY / window.innerHeight) * 2 + 1;
+            
             raycaster.setFromCamera(mouse, camera);
             const intersects = raycaster.intersectObjects(scene.children);
             
             if (intersects.length > 0 && intersects[0].object.userData.clickable) {
                 const object = intersects[0].object;
-                showPopup(object, event.clientX, event.clientY);
+                showPopup(object, coords.clientX, coords.clientY);
             }
         }
+
+        // Remove existing click event listener and add new event listeners
+        window.addEventListener('click', handleInteraction);
+        window.addEventListener('touchstart', handleInteraction, { passive: false });
+        
+        // Update close popup to work with touch
+        const closeBtn = document.querySelector('.close-btn');
+        closeBtn.addEventListener('click', closePopup);
+        closeBtn.addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            closePopup();
+        }, { passive: false });
 
         function showPopup(object, x, y) {
             let info;
@@ -279,9 +299,6 @@
             planetLabel.style.left = (tempV.x * 0.5 + 0.5) * window.innerWidth + 'px';
             planetLabel.style.top = (-tempV.y * 0.5 + 0.5) * window.innerHeight + 'px';
         }
-
-        window.addEventListener('click', onClick);
-        window.addEventListener('touchstart', onClick);
 
         const toggleButton = document.getElementById('toggleOrbit');
         
