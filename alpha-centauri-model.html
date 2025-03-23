@@ -1,0 +1,429 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Alpha Centauri Star System</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/dat-gui/0.7.7/dat.gui.min.js"></script>
+  <style>
+    body {
+      margin: 0;
+      overflow: hidden;
+      background-color: #000;
+      color: #fff;
+      font-family: Arial, sans-serif;
+    }
+    
+    #info-bubble {
+      position: absolute;
+      bottom: 20px;
+      left: 20px;
+      background-color: rgba(0, 0, 0, 0.7);
+      border-radius: 50%;
+      width: 40px;
+      height: 40px;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      cursor: pointer;
+      z-index: 100;
+      transition: all 0.3s ease;
+    }
+    
+    #info-bubble.expanded {
+      width: 300px;
+      height: auto;
+      border-radius: 10px;
+      padding: 15px;
+    }
+    
+    #info-icon {
+      font-size: 24px;
+      color: #66ccff;
+    }
+    
+    #info-content {
+      display: none;
+      opacity: 0;
+      transition: opacity 0.3s ease;
+    }
+    
+    #info-bubble.expanded #info-content {
+      display: block;
+      opacity: 1;
+    }
+    
+    #info-bubble.expanded #info-icon {
+      display: none;
+    }
+    
+    h1 {
+      margin-top: 0;
+      font-size: 20px;
+      color: #ffcc00;
+    }
+    
+    h2 {
+      font-size: 16px;
+      margin-top: 15px;
+      margin-bottom: 5px;
+      color: #66ccff;
+    }
+    
+    p {
+      margin: 5px 0;
+      font-size: 14px;
+    }
+    
+    #controls {
+      position: absolute;
+      top: 10px;
+      left: 10px;
+      background-color: rgba(0, 0, 0, 0.7);
+      border-radius: 5px;
+      padding: 10px;
+      z-index: 100;
+    }
+    
+    button {
+      background-color: #333;
+      color: #fff;
+      border: 1px solid #666;
+      padding: 5px 10px;
+      margin-right: 5px;
+      cursor: pointer;
+      border-radius: 3px;
+    }
+    
+    button:hover {
+      background-color: #444;
+    }
+    
+    #canvas {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+    }
+    
+    .control-label {
+      display: inline-block;
+      width: 120px;
+      font-weight: bold;
+    }
+    
+    .control-group {
+      margin-bottom: 8px;
+    }
+    
+    #play-pause {
+      width: 80px;
+    }
+    
+    #close-info {
+      position: absolute;
+      top: 10px;
+      right: 10px;
+      background: none;
+      border: none;
+      color: #fff;
+      font-size: 16px;
+      cursor: pointer;
+    }
+  </style>
+</head>
+<body>
+  <div id="controls">
+    <div class="control-group">
+      <button id="focus-star">Focus on Star</button>
+      <button id="focus-planet">Focus on Planet</button>
+    </div>
+    <div class="control-group">
+      <button id="play-pause">Play</button>
+      <button id="reset-view">Reset View</button>
+    </div>
+    <div class="control-group">
+      <span class="control-label">Rotation Speed:</span>
+      <input type="range" id="rotation-speed" min="0" max="5" step="0.1" value="1">
+    </div>
+  </div>
+  
+  <div id="info-bubble">
+    <div id="info-icon">i</div>
+    <div id="info-content">
+      <button id="close-info">×</button>
+      <h1>Alpha Centauri System</h1>
+      
+      <h2>Alpha Centauri A (Star)</h2>
+      <p>Type: G2V (Similar to our Sun)</p>
+      <p>Mass: 1.1 solar masses</p>
+      <p>Radius: 1.2 solar radii</p>
+      <p>Temperature: 5,790 K</p>
+      
+      <h2>Alpha Centauri B (Planet)</h2>
+      <p>Type: Rocky planet (Super Earth)</p>
+      <p>Mass: 1.3 Earth masses</p>
+      <p>Radius: 1.1 Earth radii</p>
+      <p>Density: 5.5 g/cm³ (similar to Earth)</p>
+      <p>Orbital Period: 3.24 days</p>
+      <p>Distance from star: 0.04 AU</p>
+      <p>Surface Temperature: ~1,200°C (too hot for liquid water)</p>
+    </div>
+  </div>
+  
+  <div id="canvas"></div>
+  
+  <script>
+    // Scene setup
+    const scene = new THREE.Scene();
+    const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+    const renderer = new THREE.WebGLRenderer({ antialias: true });
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    document.getElementById('canvas').appendChild(renderer.domElement);
+    
+    // Lighting
+    const ambientLight = new THREE.AmbientLight(0x333333);
+    scene.add(ambientLight);
+    
+    const starLight = new THREE.PointLight(0xffffcc, 2, 100);
+    starLight.position.set(0, 0, 0);
+    scene.add(starLight);
+    
+    // More realistic size proportions 
+    // Sun is about 109 times larger than Earth, but we'll use a smaller ratio for visibility
+    const starRadius = 5;
+    const planetRadius = starRadius * 0.009; // More realistic size ratio (still enlarged for visibility)
+    
+    // Star (Alpha Centauri A)
+    const starGeometry = new THREE.SphereGeometry(starRadius, 32, 32);
+    const starMaterial = new THREE.MeshBasicMaterial({
+      color: 0xffffcc,
+      emissive: 0xffffcc,
+      emissiveIntensity: 1
+    });
+    const star = new THREE.Mesh(starGeometry, starMaterial);
+    scene.add(star);
+    
+    // Starlight glow
+    const starGlowGeometry = new THREE.SphereGeometry(starRadius * 1.1, 32, 32);
+    const starGlowMaterial = new THREE.MeshBasicMaterial({
+      color: 0xffffcc,
+      transparent: true,
+      opacity: 0.2
+    });
+    const starGlow = new THREE.Mesh(starGlowGeometry, starGlowMaterial);
+    scene.add(starGlow);
+    
+    // Planet (Alpha Centauri B)
+    const planetGeometry = new THREE.SphereGeometry(planetRadius, 32, 32);
+    const planetMaterial = new THREE.MeshPhongMaterial({
+      color: 0xcc6633,
+      specular: 0x444444,
+      shininess: 30
+    });
+    const planet = new THREE.Mesh(planetGeometry, planetMaterial);
+    
+    // Orbital setup - in reality, Alpha Centauri B orbits at about 0.04 AU
+    // We'll scale this for visibility while keeping it more realistic than before
+    const orbitRadius = starRadius * 10; // Scaled distance for visibility
+    planet.position.set(orbitRadius, 0, 0);
+    
+    // Planet system (for independent rotation)
+    const planetSystem = new THREE.Group();
+    planetSystem.add(planet);
+    scene.add(planetSystem);
+    
+    // Orbit path visualization
+    const orbitGeometry = new THREE.BufferGeometry();
+    const orbitMaterial = new THREE.LineBasicMaterial({ color: 0x666666 });
+    
+    const orbitPoints = [];
+    const orbitSegments = 128;
+    for (let i = 0; i <= orbitSegments; i++) {
+      const angle = (i / orbitSegments) * Math.PI * 2;
+      orbitPoints.push(
+        orbitRadius * Math.cos(angle),
+        0,
+        orbitRadius * Math.sin(angle)
+      );
+    }
+    
+    orbitGeometry.setAttribute('position', new THREE.Float32BufferAttribute(orbitPoints, 3));
+    const orbitPath = new THREE.Line(orbitGeometry, orbitMaterial);
+    scene.add(orbitPath);
+    
+    // Stars background
+    const starsGeometry = new THREE.BufferGeometry();
+    const starsMaterial = new THREE.PointsMaterial({
+      color: 0xffffff,
+      size: 0.1
+    });
+    
+    const starsVertices = [];
+    for (let i = 0; i < 10000; i++) {
+      const x = (Math.random() - 0.5) * 2000;
+      const y = (Math.random() - 0.5) * 2000;
+      const z = (Math.random() - 0.5) * 2000;
+      starsVertices.push(x, y, z);
+    }
+    
+    starsGeometry.setAttribute('position', new THREE.Float32BufferAttribute(starsVertices, 3));
+    const stars = new THREE.Points(starsGeometry, starsMaterial);
+    scene.add(stars);
+    
+    // Camera position - adjusted for the new scale
+    camera.position.z = orbitRadius * 2.5;
+    
+    // Controls
+    let rotationSpeed = 1;
+    let focusedObject = 'star';
+    let isPlaying = false;
+    
+    // Rotation and orbiting
+    let planetAngle = 0;
+    
+    // Control handlers
+    document.getElementById('focus-star').addEventListener('click', () => {
+      focusedObject = 'star';
+    });
+    
+    document.getElementById('focus-planet').addEventListener('click', () => {
+      focusedObject = 'planet';
+    });
+    
+    document.getElementById('rotation-speed').addEventListener('input', (e) => {
+      rotationSpeed = parseFloat(e.target.value);
+    });
+    
+    const playPauseBtn = document.getElementById('play-pause');
+    playPauseBtn.addEventListener('click', () => {
+      isPlaying = !isPlaying;
+      playPauseBtn.textContent = isPlaying ? 'Pause' : 'Play';
+    });
+    
+    document.getElementById('reset-view').addEventListener('click', () => {
+      camera.position.set(0, 0, orbitRadius * 2.5);
+      camera.lookAt(0, 0, 0);
+    });
+    
+    // Info bubble toggle
+    const infoBubble = document.getElementById('info-bubble');
+    const infoIcon = document.getElementById('info-icon');
+    const closeInfoBtn = document.getElementById('close-info');
+    
+    infoBubble.addEventListener('click', (e) => {
+      if (e.target !== closeInfoBtn && !closeInfoBtn.contains(e.target)) {
+        infoBubble.classList.toggle('expanded');
+      }
+    });
+    
+    closeInfoBtn.addEventListener('click', () => {
+      infoBubble.classList.remove('expanded');
+    });
+    
+    // Mouse controls for rotation
+    let isDragging = false;
+    let previousMousePosition = {
+      x: 0,
+      y: 0
+    };
+    
+    renderer.domElement.addEventListener('mousedown', (e) => {
+      isDragging = true;
+    });
+    
+    renderer.domElement.addEventListener('mousemove', (e) => {
+      const deltaMove = {
+        x: e.offsetX - previousMousePosition.x,
+        y: e.offsetY - previousMousePosition.y
+      };
+      
+      if (isDragging) {
+        if (focusedObject === 'star') {
+          // Rotate star
+          const deltaRotationQuaternion = new THREE.Quaternion()
+            .setFromEuler(new THREE.Euler(
+              toRadians(deltaMove.y * 0.5),
+              toRadians(deltaMove.x * 0.5),
+              0,
+              'XYZ'
+            ));
+          
+          star.quaternion.multiplyQuaternions(deltaRotationQuaternion, star.quaternion);
+          starGlow.quaternion.copy(star.quaternion);
+        } else {
+          // Rotate planet
+          const deltaRotationQuaternion = new THREE.Quaternion()
+            .setFromEuler(new THREE.Euler(
+              toRadians(deltaMove.y * 0.5),
+              toRadians(deltaMove.x * 0.5),
+              0,
+              'XYZ'
+            ));
+          
+          planet.quaternion.multiplyQuaternions(deltaRotationQuaternion, planet.quaternion);
+        }
+      }
+      
+      previousMousePosition = {
+        x: e.offsetX,
+        y: e.offsetY
+      };
+    });
+    
+    renderer.domElement.addEventListener('mouseup', (e) => {
+      isDragging = false;
+    });
+    
+    // Zoom with mouse wheel
+    renderer.domElement.addEventListener('wheel', (e) => {
+      e.preventDefault();
+      
+      // Adjust zoom level based on wheel direction
+      const zoomSpeed = camera.position.z * 0.05; // Proportional zoom speed
+      const zoomDelta = e.deltaY > 0 ? zoomSpeed : -zoomSpeed;
+      
+      // Limit how close and how far we can zoom
+      if (camera.position.z + zoomDelta > planetRadius * 2 && camera.position.z + zoomDelta < orbitRadius * 10) {
+        camera.position.z += zoomDelta;
+      }
+    });
+    
+    // Helper function to convert degrees to radians
+    function toRadians(angle) {
+      return angle * (Math.PI / 180);
+    }
+    
+    // Animation loop
+    function animate() {
+      requestAnimationFrame(animate);
+      
+      // Auto-rotate the star and planet on their axes
+      star.rotation.y += 0.005 * rotationSpeed;
+      starGlow.rotation.y = star.rotation.y;
+      planet.rotation.y += 0.01 * rotationSpeed;
+      
+      // Orbit the planet around the star only if playing
+      if (isPlaying) {
+        planetAngle += 0.01 * rotationSpeed;
+        planetSystem.position.x = Math.cos(planetAngle) * orbitRadius;
+        planetSystem.position.z = Math.sin(planetAngle) * orbitRadius;
+      }
+      
+      renderer.render(scene, camera);
+    }
+    
+    // Handle window resize
+    window.addEventListener('resize', () => {
+      camera.aspect = window.innerWidth / window.innerHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(window.innerWidth, window.innerHeight);
+    });
+    
+    // Start animation
+    animate();
+  </script>
+</body>
+</html>
