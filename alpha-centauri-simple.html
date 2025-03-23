@@ -43,6 +43,7 @@
         </ul>
     </div>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://unpkg.com/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
     <script>
         // Scene setup
         const scene = new THREE.Scene();
@@ -50,6 +51,15 @@
         const renderer = new THREE.WebGLRenderer();
         renderer.setSize(window.innerWidth, window.innerHeight);
         document.body.appendChild(renderer.domElement);
+
+        // Add orbit controls
+        const controls = new THREE.OrbitControls(camera, renderer.domElement);
+        controls.enableDamping = true;
+        controls.dampingFactor = 0.05;
+        controls.screenSpacePanning = false;
+        controls.minDistance = 5;
+        controls.maxDistance = 50;
+        controls.maxPolarAngle = Math.PI;
 
         // Create star system
         const starAGeometry = new THREE.SphereGeometry(1.22, 32, 32);
@@ -78,6 +88,9 @@
         let anglePlanet = 0;
         function animate() {
             requestAnimationFrame(animate);
+
+            // Update controls
+            controls.update();
 
             // Rotate star B around star A
             angleB += 0.005;
