@@ -154,14 +154,30 @@
                 type: 'G2V yellow dwarf star',
                 temperature: '5790 K',
                 age: '~6.5 billion years',
-                details: 'Similar in size and type to our Sun, Alpha Centauri A is the primary star of the system.'
+                details: 'Similar in size and type to our Sun, Alpha Centauri A is the primary star of the system.',
+                fusion: `Inside the star's super-hot core (15.6 million degrees):
+                        <ol>
+                            <li>Hydrogen atoms smash together at incredible speeds</li>
+                            <li>The collision is so powerful it creates a new element: helium</li>
+                            <li>This process releases enormous amounts of energy (like millions of hydrogen bombs)</li>
+                            <li>The energy travels outward, making the star bright and hot</li>
+                        </ol>
+                        This is why the star glows and provides heat and light to its planets!`
             },
             'starB': {
                 name: 'Alpha Centauri B',
                 type: 'K1V orange dwarf star',
                 temperature: '5260 K',
                 age: '~6.5 billion years',
-                details: 'Slightly smaller and cooler than Alpha Centauri A, it orbits the primary star every 79 years.'
+                details: 'Slightly smaller and cooler than Alpha Centauri A, it orbits the primary star every 79 years.',
+                fusion: `Similar to Alpha Centauri A, but smaller and cooler:
+                        <ol>
+                            <li>Core temperature is 14 million degrees</li>
+                            <li>Hydrogen atoms combine to make helium, just like in A</li>
+                            <li>Because it's smaller, fewer atoms crash together</li>
+                            <li>This means it makes less energy and appears more orange</li>
+                        </ol>
+                        Think of it like a smaller campfire next to a bigger one!`
             },
             'planet': {
                 name: 'Proxima Centauri b',
@@ -170,6 +186,24 @@
                 details: 'This exoplanet orbits in the habitable zone of Proxima Centauri, making it a candidate for potential habitability.'
             }
         };
+
+        // Create orbital path
+        const orbitPoints = [];
+        const eccentricity = 0.11; // Orbital eccentricity
+        const semiMajorAxis = 5;
+        const semiMinorAxis = semiMajorAxis * Math.sqrt(1 - eccentricity * eccentricity);
+        
+        for (let theta = 0; theta <= 2 * Math.PI; theta += Math.PI / 180) {
+            const r = (semiMajorAxis * (1 - eccentricity * eccentricity)) / (1 + eccentricity * Math.cos(theta));
+            const x = r * Math.cos(theta);
+            const z = r * Math.sin(theta);
+            orbitPoints.push(new THREE.Vector3(x, 0, z));
+        }
+        
+        const orbitGeometry = new THREE.BufferGeometry().setFromPoints(orbitPoints);
+        const orbitMaterial = new THREE.LineBasicMaterial({ color: 0x666666, opacity: 0.5, transparent: true });
+        const orbitPath = new THREE.Line(orbitGeometry, orbitMaterial);
+        scene.add(orbitPath);
 
         // Add click handlers to objects
         starA.userData.clickable = true;
@@ -212,6 +246,7 @@
                 ${info.temperature ? `<p><strong>Temperature:</strong> ${info.temperature}</p>` : ''}
                 ${info.age ? `<p><strong>Age:</strong> ${info.age}</p>` : ''}
                 <p>${info.details}</p>
+                ${info.fusion ? `<h4>Nuclear Fusion Process:</h4><p>${info.fusion}</p>` : ''}
             `;
             
             popup.style.display = 'block';
@@ -266,12 +301,14 @@
                 starB.position.x = Math.cos(angleB) * 3;
                 starB.position.z = Math.sin(angleB) * 3;
 
-                // Rotate planet around star A
+                // Update planet position with elliptical orbit
                 anglePlanet += 0.02;
-                planet.position.x = Math.cos(anglePlanet) * 5;
-                planet.position.z = Math.sin(anglePlanet) * 5;
+                const r = (semiMajorAxis * (1 - eccentricity * eccentricity)) / 
+                         (1 + eccentricity * Math.cos(anglePlanet));
+                planet.position.x = r * Math.cos(anglePlanet);
+                planet.position.z = r * Math.sin(anglePlanet);
 
-                // Rotate stars and planet
+                // Rotate objects
                 starA.rotation.y += 0.003;
                 starB.rotation.y += 0.004;
                 planet.rotation.y += 0.01;
