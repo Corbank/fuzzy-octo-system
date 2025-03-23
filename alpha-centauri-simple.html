@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html>
 <head>
@@ -6,9 +5,43 @@
     <style>
         body { margin: 0; }
         canvas { display: block; }
+        #info {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            color: white;
+            font-family: Arial, sans-serif;
+            background: rgba(0, 0, 0, 0.7);
+            padding: 15px;
+            border-radius: 5px;
+        }
     </style>
 </head>
 <body>
+    <div id="info">
+        <h2>Alpha Centauri System</h2>
+        <h3>Distance from Earth: 4.37 light-years</h3>
+        <h3>Alpha Centauri A</h3>
+        <ul>
+            <li>Mass: 1.1 solar masses</li>
+            <li>Radius: 1.22 solar radii</li>
+            <li>Main Sequence Lifespan: ~6.5 billion years</li>
+        </ul>
+        <h3>Alpha Centauri B</h3>
+        <ul>
+            <li>Mass: 0.907 solar masses</li>
+            <li>Radius: 0.86 solar radii</li>
+            <li>Main Sequence Lifespan: ~8 billion years</li>
+        </ul>
+        <h3>Proxima Centauri b (Exoplanet)</h3>
+        <ul>
+            <li>Mass: 1.17 Earth masses</li>
+            <li>Radius: ~1.1 Earth radii</li>
+            <li>Orbital Radius: 0.049 AU</li>
+            <li>Orbital Period: 11.2 days</li>
+            <li>Orbital Eccentricity: 0.11</li>
+        </ul>
+    </div>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <script>
         // Scene setup
@@ -18,34 +51,47 @@
         renderer.setSize(window.innerWidth, window.innerHeight);
         document.body.appendChild(renderer.domElement);
 
-        // Create star
-        const starGeometry = new THREE.SphereGeometry(2, 32, 32);
-        const starMaterial = new THREE.MeshBasicMaterial({ color: 0xffff00 });
-        const star = new THREE.Mesh(starGeometry, starMaterial);
-        scene.add(star);
+        // Create star system
+        const starAGeometry = new THREE.SphereGeometry(1.22, 32, 32);
+        const starAMaterial = new THREE.MeshBasicMaterial({ color: 0xffd700 }); // More yellow
+        const starA = new THREE.Mesh(starAGeometry, starAMaterial);
+        scene.add(starA);
 
-        // Create planet
-        const planetGeometry = new THREE.SphereGeometry(0.5, 32, 32);
+        const starBGeometry = new THREE.SphereGeometry(0.86, 32, 32);
+        const starBMaterial = new THREE.MeshBasicMaterial({ color: 0xffa500 }); // More orange
+        const starB = new THREE.Mesh(starBGeometry, starBMaterial);
+        starB.position.x = 3; // Initial position
+        scene.add(starB);
+
+        // Create planet (Proxima b)
+        const planetGeometry = new THREE.SphereGeometry(0.1, 32, 32);
         const planetMaterial = new THREE.MeshBasicMaterial({ color: 0x3366ff });
         const planet = new THREE.Mesh(planetGeometry, planetMaterial);
-        planet.position.x = 5; // Set initial position
+        planet.position.x = 5;
         scene.add(planet);
 
         // Position camera
         camera.position.z = 15;
 
         // Animation
-        let angle = 0;
+        let angleB = 0;
+        let anglePlanet = 0;
         function animate() {
             requestAnimationFrame(animate);
 
-            // Rotate planet around star
-            angle += 0.01;
-            planet.position.x = Math.cos(angle) * 5;
-            planet.position.z = Math.sin(angle) * 5;
+            // Rotate star B around star A
+            angleB += 0.005;
+            starB.position.x = Math.cos(angleB) * 3;
+            starB.position.z = Math.sin(angleB) * 3;
 
-            // Rotate star and planet
-            star.rotation.y += 0.005;
+            // Rotate planet around star A
+            anglePlanet += 0.02;
+            planet.position.x = Math.cos(anglePlanet) * 5;
+            planet.position.z = Math.sin(anglePlanet) * 5;
+
+            // Rotate stars and planet
+            starA.rotation.y += 0.003;
+            starB.rotation.y += 0.004;
             planet.rotation.y += 0.01;
 
             renderer.render(scene, camera);
