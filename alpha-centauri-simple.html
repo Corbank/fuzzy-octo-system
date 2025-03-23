@@ -40,6 +40,26 @@
             float: right;
             cursor: pointer;
         }
+        .audio-controls {
+            position: absolute;
+            bottom: 20px;
+            right: 20px;
+            background: rgba(0, 0, 0, 0.7);
+            padding: 10px;
+            border-radius: 5px;
+            color: white;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .audio-controls button {
+            background: transparent;
+            border: 1px solid white;
+            color: white;
+            padding: 5px 10px;
+            border-radius: 3px;
+            cursor: pointer;
+        }
     </style>
 </head>
 <body>
@@ -75,6 +95,10 @@
     <div id="popup" class="popup">
         <span class="close-btn" onclick="closePopup()">×</span>
         <div id="popup-content"></div>
+    </div>
+
+    <div class="audio-controls">
+        <button id="toggleOrbit">Pause Orbit</button>
     </div>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
@@ -121,6 +145,7 @@
         // Animation variables
         let angleB = 0;
         let anglePlanet = 0;
+        let isOrbiting = true;
 
         // Object information
         const objectInfo = {
@@ -222,26 +247,35 @@
 
         window.addEventListener('click', onClick);
 
+        const toggleButton = document.getElementById('toggleOrbit');
+        
+        toggleButton.addEventListener('click', () => {
+            isOrbiting = !isOrbiting;
+            toggleButton.textContent = isOrbiting ? 'Pause Orbit' : 'Resume Orbit';
+        });
+
         function animate() {
             requestAnimationFrame(animate);
 
             // Update controls
             controls.update();
 
-            // Rotate star B around star A
-            angleB += 0.005;
-            starB.position.x = Math.cos(angleB) * 3;
-            starB.position.z = Math.sin(angleB) * 3;
+            if (isOrbiting) {
+                // Rotate star B around star A
+                angleB += 0.005;
+                starB.position.x = Math.cos(angleB) * 3;
+                starB.position.z = Math.sin(angleB) * 3;
 
-            // Rotate planet around star A
-            anglePlanet += 0.02;
-            planet.position.x = Math.cos(anglePlanet) * 5;
-            planet.position.z = Math.sin(anglePlanet) * 5;
+                // Rotate planet around star A
+                anglePlanet += 0.02;
+                planet.position.x = Math.cos(anglePlanet) * 5;
+                planet.position.z = Math.sin(anglePlanet) * 5;
 
-            // Rotate stars and planet
-            starA.rotation.y += 0.003;
-            starB.rotation.y += 0.004;
-            planet.rotation.y += 0.01;
+                // Rotate stars and planet
+                starA.rotation.y += 0.003;
+                starB.rotation.y += 0.004;
+                planet.rotation.y += 0.01;
+            }
 
             updateLabels();
             renderer.render(scene, camera);
