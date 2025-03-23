@@ -15,6 +15,31 @@
             padding: 15px;
             border-radius: 5px;
         }
+        .label {
+            color: white;
+            font-family: Arial, sans-serif;
+            position: absolute;
+            background: rgba(0, 0, 0, 0.7);
+            padding: 5px;
+            border-radius: 3px;
+            font-size: 12px;
+            pointer-events: none;
+        }
+        .popup {
+            display: none;
+            position: absolute;
+            background: rgba(0, 0, 0, 0.9);
+            color: white;
+            padding: 15px;
+            border-radius: 5px;
+            font-family: Arial, sans-serif;
+            max-width: 300px;
+            z-index: 1000;
+        }
+        .close-btn {
+            float: right;
+            cursor: pointer;
+        }
     </style>
 </head>
 <body>
@@ -42,6 +67,16 @@
             <li>Orbital Eccentricity: 0.11</li>
         </ul>
     </div>
+    
+    <div id="starA-label" class="label">Alpha Centauri A</div>
+    <div id="starB-label" class="label">Alpha Centauri B</div>
+    <div id="planet-label" class="label">Proxima b</div>
+
+    <div id="popup" class="popup">
+        <span class="close-btn" onclick="closePopup()">×</span>
+        <div id="popup-content"></div>
+    </div>
+
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <script src="https://unpkg.com/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
     <script>
@@ -83,9 +118,110 @@
         // Position camera
         camera.position.z = 15;
 
-        // Animation
+        // Animation variables
         let angleB = 0;
         let anglePlanet = 0;
+
+        // Object information
+        const objectInfo = {
+            'starA': {
+                name: 'Alpha Centauri A',
+                type: 'G2V yellow dwarf star',
+                temperature: '5790 K',
+                age: '~6.5 billion years',
+                details: 'Similar in size and type to our Sun, Alpha Centauri A is the primary star of the system.'
+            },
+            'starB': {
+                name: 'Alpha Centauri B',
+                type: 'K1V orange dwarf star',
+                temperature: '5260 K',
+                age: '~6.5 billion years',
+                details: 'Slightly smaller and cooler than Alpha Centauri A, it orbits the primary star every 79 years.'
+            },
+            'planet': {
+                name: 'Proxima Centauri b',
+                type: 'Super-Earth / Mini-Neptune',
+                discovered: '2016',
+                details: 'This exoplanet orbits in the habitable zone of Proxima Centauri, making it a candidate for potential habitability.'
+            }
+        };
+
+        // Add click handlers to objects
+        starA.userData.clickable = true;
+        starB.userData.clickable = true;
+        planet.userData.clickable = true;
+
+        // Label elements
+        const starALabel = document.getElementById('starA-label');
+        const starBLabel = document.getElementById('starB-label');
+        const planetLabel = document.getElementById('planet-label');
+        const popup = document.getElementById('popup');
+        const popupContent = document.getElementById('popup-content');
+
+        // Raycaster for click detection
+        const raycaster = new THREE.Raycaster();
+        const mouse = new THREE.Vector2();
+
+        // Click handler
+        function onClick(event) {
+            mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
+            mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
+            raycaster.setFromCamera(mouse, camera);
+            const intersects = raycaster.intersectObjects(scene.children);
+            
+            if (intersects.length > 0 && intersects[0].object.userData.clickable) {
+                const object = intersects[0].object;
+                showPopup(object, event.clientX, event.clientY);
+            }
+        }
+
+        function showPopup(object, x, y) {
+            let info;
+            if (object === starA) info = objectInfo.starA;
+            else if (object === starB) info = objectInfo.starB;
+            else if (object === planet) info = objectInfo.planet;
+
+            popupContent.innerHTML = `
+                <h3>${info.name}</h3>
+                <p><strong>Type:</strong> ${info.type}</p>
+                ${info.temperature ? `<p><strong>Temperature:</strong> ${info.temperature}</p>` : ''}
+                ${info.age ? `<p><strong>Age:</strong> ${info.age}</p>` : ''}
+                <p>${info.details}</p>
+            `;
+            
+            popup.style.display = 'block';
+            popup.style.left = `${x + 10}px`;
+            popup.style.top = `${y + 10}px`;
+        }
+
+        function closePopup() {
+            popup.style.display = 'none';
+        }
+
+        function updateLabels() {
+            const tempV = new THREE.Vector3();
+            
+            // Update star A label
+            tempV.setFromMatrixPosition(starA.matrixWorld);
+            tempV.project(camera);
+            starALabel.style.left = (tempV.x * 0.5 + 0.5) * window.innerWidth + 'px';
+            starALabel.style.top = (-tempV.y * 0.5 + 0.5) * window.innerHeight + 'px';
+
+            // Update star B label
+            tempV.setFromMatrixPosition(starB.matrixWorld);
+            tempV.project(camera);
+            starBLabel.style.left = (tempV.x * 0.5 + 0.5) * window.innerWidth + 'px';
+            starBLabel.style.top = (-tempV.y * 0.5 + 0.5) * window.innerHeight + 'px';
+
+            // Update planet label
+            tempV.setFromMatrixPosition(planet.matrixWorld);
+            tempV.project(camera);
+            planetLabel.style.left = (tempV.x * 0.5 + 0.5) * window.innerWidth + 'px';
+            planetLabel.style.top = (-tempV.y * 0.5 + 0.5) * window.innerHeight + 'px';
+        }
+
+        window.addEventListener('click', onClick);
+
         function animate() {
             requestAnimationFrame(animate);
 
@@ -107,6 +243,7 @@
             starB.rotation.y += 0.004;
             planet.rotation.y += 0.01;
 
+            updateLabels();
             renderer.render(scene, camera);
         }
 
