@@ -73,6 +73,17 @@
         .audio-controls button:hover {
             background: rgba(255, 255, 255, 0.1);
         }
+        #distanceMap {
+            position: absolute;
+            bottom: 20px;
+            left: 20px;
+            background: rgba(0, 0, 0, 0.7);
+            border-radius: 5px;
+            padding: 10px;
+            width: 200px;
+            height: 100px;
+            z-index: 1000;
+        }
     </style>
 </head>
 <body>
@@ -113,6 +124,8 @@
     <div class="audio-controls">
         <button id="toggleOrbit">Pause Orbit</button>
     </div>
+
+    <canvas id="distanceMap"></canvas>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <script src="https://unpkg.com/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
@@ -382,6 +395,51 @@
         toggleButton.addEventListener('click', toggleOrbit);
         toggleButton.addEventListener('touchstart', toggleOrbit, { passive: false });
 
+        // Setup distance map
+        const mapCanvas = document.getElementById('distanceMap');
+        const ctx = mapCanvas.getContext('2d');
+        mapCanvas.width = 200;
+        mapCanvas.height = 100;
+
+        function drawDistanceMap() {
+            ctx.clearRect(0, 0, mapCanvas.width, mapCanvas.height);
+            
+            // Set text properties
+            ctx.font = '12px Arial';
+            ctx.fillStyle = 'white';
+            ctx.textAlign = 'center';
+            
+            // Draw title
+            ctx.fillText('Distance Map (Light-years)', 100, 15);
+            
+            // Draw solar systems
+            ctx.beginPath();
+            ctx.arc(30, 50, 5, 0, Math.PI * 2);
+            ctx.fillStyle = '#FFD700';
+            ctx.fill();
+            ctx.fillStyle = 'white';
+            ctx.fillText('Sun', 30, 70);
+            
+            ctx.beginPath();
+            ctx.arc(170, 50, 5, 0, Math.PI * 2);
+            ctx.fillStyle = '#FFA500';
+            ctx.fill();
+            ctx.fillStyle = 'white';
+            ctx.fillText('α Centauri', 170, 70);
+            
+            // Draw distance line
+            ctx.beginPath();
+            ctx.moveTo(40, 50);
+            ctx.lineTo(160, 50);
+            ctx.strokeStyle = 'white';
+            ctx.setLineDash([5, 5]);
+            ctx.stroke();
+            
+            // Draw distance label
+            ctx.setLineDash([]);
+            ctx.fillText('4.37 ly', 100, 45);
+        }
+
         function animate() {
             requestAnimationFrame(animate);
 
@@ -408,6 +466,7 @@
             }
 
             updateLabels();
+            drawDistanceMap();
             renderer.render(scene, camera);
         }
 
