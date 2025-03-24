@@ -190,7 +190,21 @@
                 name: 'Proxima Centauri b',
                 type: 'Super-Earth / Mini-Neptune',
                 discovered: '2016',
-                details: 'This exoplanet orbits in the habitable zone of Proxima Centauri, making it a candidate for potential habitability.'
+                details: 'This exoplanet orbits in the habitable zone of Proxima Centauri, making it a candidate for potential habitability.',
+                characteristics: `Planet Characteristics:
+                        <ol>
+                            <li>Surface gravity is about 1.3 times Earth's gravity</li>
+                            <li>Year length is only 11.2 Earth days</li>
+                            <li>Receives about 65% of Earth's solar radiation</li>
+                            <li>Tidally locked - one side always faces its star</li>
+                        </ol>
+                        Habitability Factors:
+                        <ul>
+                            <li>Located in the "Goldilocks Zone" where liquid water could exist</li>
+                            <li>Likely has a rocky composition similar to Earth</li>
+                            <li>May have an atmosphere, though this is uncertain</li>
+                            <li>Could have surface temperatures ranging from -40°C to 20°C</li>
+                        </ul>`
             }
         };
 
@@ -274,6 +288,7 @@
                 ${info.age ? `<p><strong>Age:</strong> ${info.age}</p>` : ''}
                 <p>${info.details}</p>
                 ${info.fusion ? `<h4>Nuclear Fusion Process:</h4><p>${info.fusion}</p>` : ''}
+                ${info.characteristics ? `<h4>Detailed Information:</h4><p>${info.characteristics}</p>` : ''}
             `;
             
             popup.style.display = 'block';
