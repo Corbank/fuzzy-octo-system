@@ -309,10 +309,14 @@
 
         const toggleButton = document.getElementById('toggleOrbit');
         
-        toggleButton.addEventListener('click', () => {
+        function toggleOrbit(e) {
+            e.preventDefault();
             isOrbiting = !isOrbiting;
             toggleButton.textContent = isOrbiting ? 'Pause Orbit' : 'Resume Orbit';
-        });
+        }
+
+        toggleButton.addEventListener('click', toggleOrbit);
+        toggleButton.addEventListener('touchstart', toggleOrbit, { passive: false });
 
         function animate() {
             requestAnimationFrame(animate);
