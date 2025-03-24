@@ -3,7 +3,11 @@
 <head>
     <title>Simple Alpha Centauri</title>
     <style>
-        body { margin: 0; }
+        body { 
+            margin: 0; 
+            overflow: hidden; /* Prevent white background from scrolling */
+            background: #000;
+        }
         canvas { display: block; }
         #info {
             position: absolute;
@@ -34,6 +38,8 @@
             border-radius: 5px;
             font-family: Arial, sans-serif;
             max-width: 300px;
+            max-height: 80vh; /* Limit height to viewport */
+            overflow-y: auto; /* Add scrolling for overflow content */
             z-index: 1000;
         }
         .close-btn {
@@ -141,9 +147,25 @@
 
         // Create planet (Proxima b)
         const planetGeometry = new THREE.SphereGeometry(0.1, 32, 32);
-        const planetMaterial = new THREE.MeshBasicMaterial({ color: 0x3366ff });
+        const planetMaterial = new THREE.MeshBasicMaterial({ 
+            color: 0x3366ff,
+            transparent: true,
+            opacity: 0.8
+        });
         const planet = new THREE.Mesh(planetGeometry, planetMaterial);
         planet.position.x = 5;
+        // Make the planet easier to click by adding a larger collision sphere
+        const planetClickArea = new THREE.Mesh(
+            new THREE.SphereGeometry(0.3, 8, 8),
+            new THREE.MeshBasicMaterial({ 
+                visible: false,
+                transparent: true,
+                opacity: 0
+            })
+        );
+        planetClickArea.userData.clickable = true;
+        planetClickArea.userData.isProxyFor = planet;
+        planet.add(planetClickArea);
         scene.add(planet);
 
         // Position camera
@@ -244,9 +266,8 @@
 
         // Click handler
         function handleInteraction(event) {
-            event.preventDefault(); // Prevent default touch behavior
+            event.preventDefault();
             
-            // Get coordinates based on event type
             const coords = event.type.includes('touch') 
                 ? event.touches[0] 
                 : event;
@@ -255,11 +276,20 @@
             mouse.y = -(coords.clientY / window.innerHeight) * 2 + 1;
             
             raycaster.setFromCamera(mouse, camera);
-            const intersects = raycaster.intersectObjects(scene.children);
+            const intersects = raycaster.intersectObjects(scene.children, true); // Add true for recursive check
             
-            if (intersects.length > 0 && intersects[0].object.userData.clickable) {
+            console.log('Intersected objects:', intersects.length);
+            
+            if (intersects.length > 0) {
                 const object = intersects[0].object;
-                showPopup(object, coords.clientX, coords.clientY);
+                console.log('Clicked object:', object);
+                
+                // Handle both direct clicks and clicks on the collision sphere
+                if (object.userData.isProxyFor) {
+                    showPopup(object.userData.isProxyFor, coords.clientX, coords.clientY);
+                } else if (object.userData.clickable) {
+                    showPopup(object, coords.clientX, coords.clientY);
+                }
             }
         }
 
@@ -292,8 +322,27 @@
             `;
             
             popup.style.display = 'block';
-            popup.style.left = `${x + 10}px`;
-            popup.style.top = `${y + 10}px`;
+
+            // Adjust popup position to stay within viewport
+            const viewportWidth = window.innerWidth;
+            const viewportHeight = window.innerHeight;
+            const popupRect = popup.getBoundingClientRect();
+            
+            let leftPos = x + 10;
+            let topPos = y + 10;
+            
+            // Adjust horizontal position if popup would overflow
+            if (leftPos + popupRect.width > viewportWidth) {
+                leftPos = viewportWidth - popupRect.width - 10;
+            }
+            
+            // Adjust vertical position if popup would overflow
+            if (topPos + popupRect.height > viewportHeight) {
+                topPos = viewportHeight - popupRect.height - 10;
+            }
+            
+            popup.style.left = `${leftPos}px`;
+            popup.style.top = `${topPos}px`;
         }
 
         function closePopup() {
