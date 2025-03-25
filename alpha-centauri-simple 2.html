@@ -1,0 +1,706 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Simple Alpha Centauri</title>
+    <style>
+        body { 
+            margin: 0; 
+            overflow: hidden; /* Prevent white background from scrolling */
+            background: #000;
+        }
+        canvas { display: block; }
+        #info {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            color: white;
+            font-family: Arial, sans-serif;
+            background: rgba(0, 0, 0, 0.7);
+            padding: 15px;
+            border-radius: 5px;
+        }
+        .label {
+            color: white;
+            font-family: Arial, sans-serif;
+            position: absolute;
+            background: rgba(0, 0, 0, 0.7);
+            padding: 5px;
+            border-radius: 3px;
+            font-size: 12px;
+            pointer-events: none;
+        }
+        .popup {
+            display: none;
+            position: absolute;
+            background: rgba(0, 0, 0, 0.9);
+            color: white;
+            padding: 15px;
+            border-radius: 5px;
+            font-family: Arial, sans-serif;
+            max-width: 300px;
+            max-height: 80vh; /* Limit height to viewport */
+            overflow-y: auto; /* Add scrolling for overflow content */
+            z-index: 1000;
+        }
+        .close-btn {
+            float: right;
+            cursor: pointer;
+        }
+        .audio-controls {
+            position: absolute;
+            bottom: 20px;
+            right: 20px;
+            background: rgba(0, 0, 0, 0.7);
+            padding: 10px;
+            border-radius: 5px;
+            color: white;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .audio-controls button {
+            background: transparent;
+            border: 2px solid white;
+            color: white;
+            padding: 12px 24px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            transition: all 0.3s ease;
+        }
+        .audio-controls button:hover {
+            background: rgba(255, 255, 255, 0.1);
+        }
+        #system-map {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            width: 200px;
+            height: 150px;
+            background: rgba(0, 0, 0, 0.7);
+            border-radius: 5px;
+            padding: 10px;
+            color: white;
+            font-family: Arial, sans-serif;
+            font-size: 12px;
+            z-index: 100;
+        }
+        
+        #system-map canvas {
+            width: 100%;
+            height: 100px;
+            margin-bottom: 5px;
+            border: 1px solid #444;
+        }
+        
+        #map-toggle {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: rgba(0, 0, 0, 0.7);
+            color: white;
+            border: 1px solid #666;
+            border-radius: 3px;
+            padding: 5px 10px;
+            cursor: pointer;
+            font-family: Arial, sans-serif;
+            font-size: 12px;
+            z-index: 101;
+        }
+        
+        #starfield {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: -1;
+        }
+    </style>
+</head>
+<body>
+    <canvas id="starfield"></canvas>
+    
+    <div id="info">
+        <h2>Alpha Centauri System</h2>
+        <h3>Distance from Earth: 4.37 light-years</h3>
+        <h3>Alpha Centauri A</h3>
+        <ul>
+            <li>Mass: 1.1 solar masses</li>
+            <li>Radius: 1.22 solar radii</li>
+            <li>Main Sequence Lifespan: ~6.5 billion years</li>
+        </ul>
+        <h3>Alpha Centauri B</h3>
+        <ul>
+            <li>Mass: 0.907 solar masses</li>
+            <li>Radius: 0.86 solar radii</li>
+            <li>Main Sequence Lifespan: ~8 billion years</li>
+        </ul>
+        <h3>Proxima Centauri b (Exoplanet)</h3>
+        <ul>
+            <li>Mass: 1.17 Earth masses</li>
+            <li>Radius: ~1.1 Earth radii</li>
+            <li>Orbital Radius: 0.049 AU</li>
+            <li>Orbital Period: 11.2 days</li>
+            <li>Orbital Eccentricity: 0.11</li>
+        </ul>
+    </div>
+    
+    <div id="starA-label" class="label">Alpha Centauri A</div>
+    <div id="starB-label" class="label">Alpha Centauri B</div>
+    <div id="planet-label" class="label">Proxima b</div>
+
+    <div id="popup" class="popup">
+        <span class="close-btn" onclick="closePopup()">×</span>
+        <div id="popup-content"></div>
+    </div>
+
+    <audio id="backgroundMusic" loop autoplay>
+        <source src="calm-space-music-312291.mp3" type="audio/mpeg">
+        Your browser does not support the audio element.
+    </audio>
+    <div class="audio-controls">
+        <button id="toggleOrbit">Pause Orbit</button>
+        <button id="toggleMusic">Pause Music</button>
+        <div id="audioMessage" style="font-size: 12px; margin-left: 10px;">Click anywhere to enable music</div>
+    </div>
+
+    <button id="map-toggle">Show Cosmic Map</button>
+    <div id="system-map" style="display: none;">
+        <canvas id="map-canvas"></canvas>
+        <div>Distance: 4.37 light-years (41.3 trillion km)</div>
+        <div>⚪ Our Solar System &nbsp;&nbsp;&nbsp; 🟡 Alpha Centauri</div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://unpkg.com/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+    <script>
+        // Starfield background
+        const starfield = document.getElementById('starfield');
+        const starCtx = starfield.getContext('2d');
+        
+        // Set canvas to full screen
+        function resizeStarfield() {
+            starfield.width = window.innerWidth;
+            starfield.height = window.innerHeight;
+            generateStars();
+        }
+        
+        // Star properties
+        const stars = [];
+        const starCount = Math.floor((window.innerWidth * window.innerHeight) / 1000); // Adjust density as needed
+        
+        // Generate random stars
+        function generateStars() {
+            stars.length = 0;
+            // Reduce star count by half (changed from 800 to 1600)
+            const starCount = Math.floor((window.innerWidth * window.innerHeight) / 1600);
+            
+            for (let i = 0; i < starCount; i++) {
+                stars.push({
+                    x: Math.random() * starfield.width,
+                    y: Math.random() * starfield.height,
+                    radius: Math.random() * 1.7 + 0.5, // Slightly larger stars
+                    brightness: Math.random() * 0.9 + 0.2, // Brighter stars
+                    twinkleSpeed: Math.random() * 0.03 + 0.01,
+                    twinkleDirection: Math.random() > 0.5 ? 1 : -1,
+                    // Add some colored stars
+                    color: Math.random() > 0.8 ? 
+                        (Math.random() > 0.5 ? 'rgba(255,220,180,' : 'rgba(180,220,255,') : 
+                        'rgba(255,255,255,'
+                });
+            }
+        }
+        
+        // Animate stars
+        function animateStars() {
+            // Clear the canvas
+            starCtx.clearRect(0, 0, starfield.width, starfield.height);
+            starCtx.fillStyle = '#000';
+            starCtx.fillRect(0, 0, starfield.width, starfield.height);
+            
+            // Draw and update each star
+            for (let i = 0; i < stars.length; i++) {
+                const star = stars[i];
+                
+                // Make stars twinkle by changing brightness
+                star.brightness += star.twinkleSpeed * star.twinkleDirection;
+                
+                // Change direction when brightness reaches limits
+                if (star.brightness > 1.0) {
+                    star.brightness = 1.0;
+                    star.twinkleDirection = -1;
+                } else if (star.brightness < 0.2) {
+                    star.brightness = 0.2;
+                    star.twinkleDirection = 1;
+                }
+                
+                // Draw the star with its color
+                starCtx.beginPath();
+                starCtx.arc(star.x, star.y, star.radius, 0, Math.PI * 2);
+                starCtx.fillStyle = `${star.color}${star.brightness})`;
+                starCtx.fill();
+            }
+            
+            requestAnimationFrame(animateStars);
+        }
+        
+        // Ensure starfield initializes correctly
+        window.addEventListener('load', () => {
+            resizeStarfield();
+            animateStars();
+        });
+
+        // Scene setup
+        const scene = new THREE.Scene();
+        const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+        
+        // Make the renderer transparent to see the starfield
+        const renderer = new THREE.WebGLRenderer({ 
+            alpha: true,
+            antialias: true
+        });
+        renderer.setClearColor(0x000000, 0); // Set to transparent
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        
+        // Make sure Three.js canvas is positioned after starfield canvas in the DOM
+        document.body.appendChild(renderer.domElement);
+        
+        // Make the Three.js canvas have higher z-index than starfield
+        renderer.domElement.style.position = 'absolute';
+        renderer.domElement.style.top = '0';
+        renderer.domElement.style.left = '0';
+        renderer.domElement.style.zIndex = '0';
+
+        // Add orbit controls
+        const controls = new THREE.OrbitControls(camera, renderer.domElement);
+        controls.enableDamping = true;
+        controls.dampingFactor = 0.05;
+        controls.screenSpacePanning = false;
+        controls.minDistance = 5;
+        controls.maxDistance = 50;
+        controls.maxPolarAngle = Math.PI;
+
+        // Create star system
+        const starAGeometry = new THREE.SphereGeometry(1.22, 32, 32);
+        const starAMaterial = new THREE.MeshBasicMaterial({ color: 0xffd700 }); // More yellow
+        const starA = new THREE.Mesh(starAGeometry, starAMaterial);
+        scene.add(starA);
+
+        const starBGeometry = new THREE.SphereGeometry(0.86, 32, 32);
+        const starBMaterial = new THREE.MeshBasicMaterial({ color: 0xffa500 }); // More orange
+        const starB = new THREE.Mesh(starBGeometry, starBMaterial);
+        starB.position.x = 3; // Initial position
+        scene.add(starB);
+
+        // Create planet (Proxima b)
+        const planetGeometry = new THREE.SphereGeometry(0.1, 32, 32);
+        const planetMaterial = new THREE.MeshBasicMaterial({ 
+            color: 0x3366ff,
+            transparent: true,
+            opacity: 0.8
+        });
+        const planet = new THREE.Mesh(planetGeometry, planetMaterial);
+        planet.position.x = 5;
+        // Make the planet easier to click by adding a larger collision sphere
+        const planetClickArea = new THREE.Mesh(
+            new THREE.SphereGeometry(0.3, 8, 8),
+            new THREE.MeshBasicMaterial({ 
+                visible: false,
+                transparent: true,
+                opacity: 0
+            })
+        );
+        planetClickArea.userData.clickable = true;
+        planetClickArea.userData.isProxyFor = planet;
+        planet.add(planetClickArea);
+        scene.add(planet);
+
+        // Position camera
+        camera.position.z = 15;
+
+        // Animation variables
+        let angleB = 0;
+        let anglePlanet = 0;
+        let isOrbiting = true;
+
+        // Object information
+        const objectInfo = {
+            'starA': {
+                name: 'Alpha Centauri A',
+                type: 'G2V yellow dwarf star',
+                temperature: '5790 K',
+                age: '~6.5 billion years',
+                details: 'Similar in size and type to our Sun, Alpha Centauri A is the primary star of the system.',
+                fusion: `Inside the star's super-hot core (15.6 million degrees):
+                        <ol>
+                            <li>Hydrogen atoms smash together at incredible speeds</li>
+                            <li>The collision is so powerful it creates a new element: helium</li>
+                            <li>This process releases enormous amounts of energy (like millions of hydrogen bombs)</li>
+                            <li>The energy travels outward, making the star bright and hot</li>
+                        </ol>
+                        This is why the star glows and provides heat and light to its planets!`
+            },
+            'starB': {
+                name: 'Alpha Centauri B',
+                type: 'K1V orange dwarf star',
+                temperature: '5260 K',
+                age: '~6.5 billion years',
+                details: 'Slightly smaller and cooler than Alpha Centauri A, it orbits the primary star every 79 years.',
+                fusion: `Similar to Alpha Centauri A, but smaller and cooler:
+                        <ol>
+                            <li>Core temperature is 14 million degrees</li>
+                            <li>Hydrogen atoms combine to make helium, just like in A</li>
+                            <li>Because it's smaller, fewer atoms crash together</li>
+                            <li>This means it makes less energy and appears more orange</li>
+                        </ol>
+                        Think of it like a smaller campfire next to a bigger one!`
+            },
+            'planet': {
+                name: 'Proxima Centauri b',
+                type: 'Super-Earth / Mini-Neptune',
+                discovered: '2016',
+                details: 'This exoplanet orbits in the habitable zone of Proxima Centauri, making it a candidate for potential habitability.',
+                characteristics: `Planet Characteristics:
+                        <ol>
+                            <li>Surface gravity is about 1.3 times Earth's gravity</li>
+                            <li>Year length is only 11.2 Earth days</li>
+                            <li>Receives about 65% of Earth's solar radiation</li>
+                            <li>Tidally locked - one side always faces its star</li>
+                        </ol>
+                        Habitability Factors:
+                        <ul>
+                            <li>Located in the "Goldilocks Zone" where liquid water could exist</li>
+                            <li>Likely has a rocky composition similar to Earth</li>
+                            <li>May have an atmosphere, though this is uncertain</li>
+                            <li>Could have surface temperatures ranging from -40°C to 20°C</li>
+                        </ul>`
+            }
+        };
+
+        // Create orbital path
+        const orbitPoints = [];
+        const eccentricity = 0.11; // Orbital eccentricity
+        const semiMajorAxis = 5;
+        const semiMinorAxis = semiMajorAxis * Math.sqrt(1 - eccentricity * eccentricity);
+        
+        for (let theta = 0; theta <= 2 * Math.PI; theta += Math.PI / 180) {
+            const r = (semiMajorAxis * (1 - eccentricity * eccentricity)) / (1 + eccentricity * Math.cos(theta));
+            const x = r * Math.cos(theta);
+            const z = r * Math.sin(theta);
+            orbitPoints.push(new THREE.Vector3(x, 0, z));
+        }
+        
+        const orbitGeometry = new THREE.BufferGeometry().setFromPoints(orbitPoints);
+        const orbitMaterial = new THREE.LineBasicMaterial({ color: 0x666666, opacity: 0.5, transparent: true });
+        const orbitPath = new THREE.Line(orbitGeometry, orbitMaterial);
+        scene.add(orbitPath);
+
+        // Add click handlers to objects
+        starA.userData.clickable = true;
+        starB.userData.clickable = true;
+        planet.userData.clickable = true;
+
+        // Label elements
+        const starALabel = document.getElementById('starA-label');
+        const starBLabel = document.getElementById('starB-label');
+        const planetLabel = document.getElementById('planet-label');
+        const popup = document.getElementById('popup');
+        const popupContent = document.getElementById('popup-content');
+
+        // Raycaster for click detection
+        const raycaster = new THREE.Raycaster();
+        const mouse = new THREE.Vector2();
+
+        // Click handler
+        function handleInteraction(event) {
+            event.preventDefault();
+            
+            const coords = event.type.includes('touch') 
+                ? event.touches[0] 
+                : event;
+
+            mouse.x = (coords.clientX / window.innerWidth) * 2 - 1;
+            mouse.y = -(coords.clientY / window.innerHeight) * 2 + 1;
+            
+            raycaster.setFromCamera(mouse, camera);
+            const intersects = raycaster.intersectObjects(scene.children, true); // Add true for recursive check
+            
+            console.log('Intersected objects:', intersects.length);
+            
+            if (intersects.length > 0) {
+                const object = intersects[0].object;
+                console.log('Clicked object:', object);
+                
+                // Handle both direct clicks and clicks on the collision sphere
+                if (object.userData.isProxyFor) {
+                    showPopup(object.userData.isProxyFor, coords.clientX, coords.clientY);
+                } else if (object.userData.clickable) {
+                    showPopup(object, coords.clientX, coords.clientY);
+                }
+            }
+        }
+
+        // Remove existing click event listener and add new event listeners
+        window.addEventListener('click', handleInteraction);
+        window.addEventListener('touchstart', handleInteraction, { passive: false });
+        
+        // Update close popup to work with touch
+        const closeBtn = document.querySelector('.close-btn');
+        closeBtn.addEventListener('click', closePopup);
+        closeBtn.addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            closePopup();
+        }, { passive: false });
+
+        function showPopup(object, x, y) {
+            let info;
+            if (object === starA) info = objectInfo.starA;
+            else if (object === starB) info = objectInfo.starB;
+            else if (object === planet) info = objectInfo.planet;
+
+            popupContent.innerHTML = `
+                <h3>${info.name}</h3>
+                <p><strong>Type:</strong> ${info.type}</p>
+                ${info.temperature ? `<p><strong>Temperature:</strong> ${info.temperature}</p>` : ''}
+                ${info.age ? `<p><strong>Age:</strong> ${info.age}</p>` : ''}
+                <p>${info.details}</p>
+                ${info.fusion ? `<h4>Nuclear Fusion Process:</h4><p>${info.fusion}</p>` : ''}
+                ${info.characteristics ? `<h4>Detailed Information:</h4><p>${info.characteristics}</p>` : ''}
+            `;
+            
+            popup.style.display = 'block';
+
+            // Adjust popup position to stay within viewport
+            const viewportWidth = window.innerWidth;
+            const viewportHeight = window.innerHeight;
+            const popupRect = popup.getBoundingClientRect();
+            
+            let leftPos = x + 10;
+            let topPos = y + 10;
+            
+            // Adjust horizontal position if popup would overflow
+            if (leftPos + popupRect.width > viewportWidth) {
+                leftPos = viewportWidth - popupRect.width - 10;
+            }
+            
+            // Adjust vertical position if popup would overflow
+            if (topPos + popupRect.height > viewportHeight) {
+                topPos = viewportHeight - popupRect.height - 10;
+            }
+            
+            popup.style.left = `${leftPos}px`;
+            popup.style.top = `${topPos}px`;
+        }
+
+        function closePopup() {
+            popup.style.display = 'none';
+        }
+
+        function updateLabels() {
+            const tempV = new THREE.Vector3();
+            const labelOffset = 30; // Pixel offset for positioning labels above stars
+            
+            // Update star A label
+            tempV.setFromMatrixPosition(starA.matrixWorld);
+            tempV.project(camera);
+            starALabel.style.left = (tempV.x * 0.5 + 0.5) * window.innerWidth + 'px';
+            starALabel.style.top = (-tempV.y * 0.5 + 0.5) * window.innerHeight - labelOffset + 'px';
+
+            // Update star B label
+            tempV.setFromMatrixPosition(starB.matrixWorld);
+            tempV.project(camera);
+            starBLabel.style.left = (tempV.x * 0.5 + 0.5) * window.innerWidth + 'px';
+            starBLabel.style.top = (-tempV.y * 0.5 + 0.5) * window.innerHeight - labelOffset + 'px';
+
+            // Update planet label - keep this at its original position
+            tempV.setFromMatrixPosition(planet.matrixWorld);
+            tempV.project(camera);
+            planetLabel.style.left = (tempV.x * 0.5 + 0.5) * window.innerWidth + 'px';
+            planetLabel.style.top = (-tempV.y * 0.5 + 0.5) * window.innerHeight + 'px';
+        }
+
+        const toggleButton = document.getElementById('toggleOrbit');
+        
+        function toggleOrbit(e) {
+            e.preventDefault();
+            isOrbiting = !isOrbiting;
+            toggleButton.textContent = isOrbiting ? 'Pause Orbit' : 'Resume Orbit';
+        }
+
+        toggleButton.addEventListener('click', toggleOrbit);
+        toggleButton.addEventListener('touchstart', toggleOrbit, { passive: false });
+
+        const music = document.getElementById('backgroundMusic');
+        const musicButton = document.getElementById('toggleMusic');
+        const audioMessage = document.getElementById('audioMessage');
+
+        // Multiple attempts to play the audio
+        function tryPlayAudio() {
+            music.play().then(() => {
+                // Audio started playing successfully
+                musicButton.textContent = 'Pause Music';
+                audioMessage.style.display = 'none';
+            }).catch((error) => {
+                console.warn('Music autoplay was blocked by the browser:', error);
+                // Keep message visible so user knows they need to interact
+            });
+        }
+
+        // Try to play when page loads
+        window.addEventListener('load', tryPlayAudio);
+        
+        // Also try to play after a short delay
+        setTimeout(tryPlayAudio, 1000);
+        
+        // Try to play on any user interaction with the page
+        document.addEventListener('click', function playOnFirstInteraction() {
+            tryPlayAudio();
+            // Remove this listener after first interaction
+            document.removeEventListener('click', playOnFirstInteraction);
+        });
+
+        function toggleMusic() {
+            if (music.paused) {
+                music.play();
+                musicButton.textContent = 'Pause Music';
+            } else {
+                music.pause();
+                musicButton.textContent = 'Play Music';
+            }
+        }
+
+        musicButton.addEventListener('click', toggleMusic);
+        musicButton.addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            toggleMusic();
+        }, { passive: false });
+
+        // System Map functions
+        const mapToggle = document.getElementById('map-toggle');
+        const systemMap = document.getElementById('system-map');
+        const mapCanvas = document.getElementById('map-canvas');
+        const mapCtx = mapCanvas.getContext('2d');
+        
+        mapToggle.addEventListener('click', () => {
+            if (systemMap.style.display === 'none') {
+                systemMap.style.display = 'block';
+                mapToggle.textContent = 'Hide Cosmic Map';
+                drawSystemMap();
+            } else {
+                systemMap.style.display = 'none';
+                mapToggle.textContent = 'Show Cosmic Map';
+            }
+        });
+        
+        function drawSystemMap() {
+            // Set canvas resolution
+            mapCanvas.width = mapCanvas.offsetWidth;
+            mapCanvas.height = mapCanvas.offsetHeight;
+            
+            const width = mapCanvas.width;
+            const height = mapCanvas.height;
+            
+            // Clear canvas
+            mapCtx.fillStyle = '#000';
+            mapCtx.fillRect(0, 0, width, height);
+            
+            // Draw distance line
+            mapCtx.strokeStyle = '#333';
+            mapCtx.beginPath();
+            mapCtx.moveTo(30, height/2);
+            mapCtx.lineTo(width-30, height/2);
+            mapCtx.stroke();
+            
+            // Draw tick marks
+            mapCtx.strokeStyle = '#444';
+            const tickCount = 4;
+            for (let i = 0; i <= tickCount; i++) {
+                const x = 30 + (width-60) * (i/tickCount);
+                mapCtx.beginPath();
+                mapCtx.moveTo(x, height/2 - 5);
+                mapCtx.lineTo(x, height/2 + 5);
+                mapCtx.stroke();
+                
+                // Add light-year markers
+                if (i > 0) {
+                    mapCtx.fillStyle = '#666';
+                    mapCtx.font = '10px Arial';
+                    mapCtx.textAlign = 'center';
+                    mapCtx.fillText(`${i}ly`, x, height/2 + 20);
+                }
+            }
+            
+            // Draw our solar system
+            mapCtx.fillStyle = '#FFFFFF';
+            mapCtx.beginPath();
+            mapCtx.arc(30, height/2, 5, 0, Math.PI * 2);
+            mapCtx.fill();
+            
+            // Draw Alpha Centauri
+            mapCtx.fillStyle = '#FFD700';
+            mapCtx.beginPath();
+            mapCtx.arc(width-30, height/2, 5, 0, Math.PI * 2);
+            mapCtx.fill();
+            
+            // Add labels
+            mapCtx.fillStyle = '#FFFFFF';
+            mapCtx.font = '10px Arial';
+            mapCtx.textAlign = 'center';
+            mapCtx.fillText('Our Solar', 30, height/2 - 15);
+            mapCtx.fillText('System', 30, height/2 - 15 + 12);
+            
+            mapCtx.fillStyle = '#FFD700';
+            mapCtx.fillText('Alpha', width-30, height/2 - 15);
+            mapCtx.fillText('Centauri', width-30, height/2 - 15 + 12);
+        }
+        
+        // Initialize the map when window resizes
+        window.addEventListener('resize', () => {
+            if (systemMap.style.display !== 'none') {
+                drawSystemMap();
+            }
+        });
+
+        function animate() {
+            requestAnimationFrame(animate);
+
+            // Update controls
+            controls.update();
+
+            if (isOrbiting) {
+                // Rotate star B around star A
+                angleB += 0.005;
+                starB.position.x = Math.cos(angleB) * 3;
+                starB.position.z = Math.sin(angleB) * 3;
+
+                // Update planet position with elliptical orbit
+                anglePlanet += 0.02;
+                const r = (semiMajorAxis * (1 - eccentricity * eccentricity)) / 
+                         (1 + eccentricity * Math.cos(anglePlanet));
+                planet.position.x = r * Math.cos(anglePlanet);
+                planet.position.z = r * Math.sin(anglePlanet);
+
+                // Rotate objects
+                starA.rotation.y += 0.003;
+                starB.rotation.y += 0.004;
+                planet.rotation.y += 0.01;
+            }
+
+            updateLabels();
+            renderer.render(scene, camera);
+        }
+
+        // Handle window resize
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+
+        animate();
+    </script>
+</body>
+</html>
